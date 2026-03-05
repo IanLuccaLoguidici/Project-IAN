@@ -21,7 +21,7 @@ This project follows:
 
 Typical module structure:
 
-```
+```text
 src
  ├── modules
  │   ├── users
