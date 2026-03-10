@@ -1,0 +1,69 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
+import { GetTodoByIdHandler } from '../src/todos/application/queries/get-todo-by-id.handler';
+import { GetTodoByIdQuery } from '../src/todos/application/queries/get-todo-by-id.query';
+import type { ITodoRepository } from '../src/todos/domain/todo-repository.interface';
+import { Todo } from '../src/todos/domain/todo.entity';
+
+describe('GetTodoByIdHandler', () => {
+  let handler: GetTodoByIdHandler;
+  let todoRepository: jest.Mocked<ITodoRepository>;
+
+  beforeEach(async () => {
+    const repoMock: jest.Mocked<ITodoRepository> = {
+      findAll: jest.fn(),
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GetTodoByIdHandler,
+        {
+          provide: 'ITodoRepository',
+          useValue: repoMock,
+        },
+      ],
+    }).compile();
+
+    handler = module.get(GetTodoByIdHandler);
+    todoRepository = module.get('ITodoRepository');
+  });
+
+  it('should return a todo when repository finds it', async () => {
+    const id = 'todo-id-1';
+    const query = new GetTodoByIdQuery(id);
+
+    const todo: Todo = {
+      id,
+      title: 'Existing todo',
+      done: false,
+      createdAt: new Date('2026-03-05T00:00:00.000Z'),
+    };
+
+    todoRepository.findById.mockResolvedValue(todo);
+
+    const result = await handler.execute(query);
+
+    expect(todoRepository.findById).toHaveBeenCalledTimes(1);
+    expect(todoRepository.findById).toHaveBeenCalledWith(id);
+    expect(result).toEqual(todo);
+  });
+
+  it('should throw NotFoundException when repository returns null', async () => {
+    const id = 'missing-id';
+    const query = new GetTodoByIdQuery(id);
+
+    todoRepository.findById.mockResolvedValue(null);
+
+    await expect(handler.execute(query)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(handler.execute(query)).rejects.toThrow(
+      `Todo with id "${id}" not found`,
+    );
+
+    expect(todoRepository.findById).toHaveBeenCalledWith(id);
+  });
+});
+

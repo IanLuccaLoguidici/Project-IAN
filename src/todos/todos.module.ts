@@ -8,6 +8,7 @@ import { UpdateTodoHandler } from './application/commands/update-todo.handler';
 import { DeleteTodoHandler } from './application/commands/delete-todo.handler';
 import { GetAllTodosHandler } from './application/queries/get-all-todos.handler';
 import { GetTodoByIdHandler } from './application/queries/get-todo-by-id.handler';
+import { TodosController } from './todos.controller';
 
 const CQRS_HANDLERS = [
   CreateTodoHandler,
@@ -24,6 +25,7 @@ const CQRS_HANDLERS = [
       { name: TodoMongo.name, schema: TodoSchema },
     ]),
   ],
+  controllers: [TodosController],
   providers: [
     {
       provide: 'ITodoRepository',
