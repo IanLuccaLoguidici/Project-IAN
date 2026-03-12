@@ -14,6 +14,9 @@ export class TodoMongo {
   @Prop({ required: true, default: false })
   done: boolean;
 
+  @Prop({ required: false })
+  attachmentPath?: string;
+
   createdAt: Date;
 }
 

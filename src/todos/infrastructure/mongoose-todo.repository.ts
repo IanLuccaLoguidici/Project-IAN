@@ -17,6 +17,7 @@ export class MongooseTodoRepository implements ITodoRepository {
       id: doc._id.toString(),
       title: doc.title,
       done: doc.done,
+      attachmentPath: doc.attachmentPath,
       createdAt: doc.createdAt,
     };
   }
@@ -41,7 +42,7 @@ export class MongooseTodoRepository implements ITodoRepository {
 
   async update(
     id: string,
-    data: Partial<Pick<Todo, 'title' | 'done'>>,
+    data: Partial<Pick<Todo, 'title' | 'done' | 'attachmentPath'>>,
   ): Promise<Todo | null> {
     const doc = await this.todoModel
       .findByIdAndUpdate(
