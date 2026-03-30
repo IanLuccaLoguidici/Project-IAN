@@ -5,18 +5,26 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Patch,
   Post,
   UploadedFile,
   UseInterceptors,
+  Query,
+  DefaultValuePipe,
+  ParseIntPipe,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
 import { FileValidationPipe } from './pipes/file-validation.pipe';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { extname } from 'path';
 import { diskStorage } from 'multer';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { ApiConsumes, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiConsumes, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { TodoResponseDto } from './dto/todo-response.dto';
@@ -27,38 +35,51 @@ import { UploadTodoAttachmentCommand } from './application/commands/upload-todo-
 import { GetAllTodosQuery } from './application/queries/get-all-todos.query';
 import { GetTodoByIdQuery } from './application/queries/get-todo-by-id.query';
 import type { Todo } from './domain/todo.entity';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Todos')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('todos')
 export class TodosController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new todo' })
   @ApiCreatedResponse({ type: TodoResponseDto, description: 'The created todo' })
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() dto: CreateTodoDto): Promise<Todo> {
-    const command = new CreateTodoCommand(dto.title, dto.done);
+  async create(@Req() req: any, @Body() dto: CreateTodoDto): Promise<Todo> {
+    this.logger.info('Creating new todo', { title: dto.title, userId: req.user.userId });
+    const command = new CreateTodoCommand(req.user.userId, dto.title, dto.done);
     return this.commandBus.execute(command);
   }
 
+
   @Get()
   @ApiOperation({ summary: 'Get all todos' })
-  @ApiOkResponse({ type: [TodoResponseDto], description: 'List of all todos' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiOkResponse({ description: 'Paginated list of all todos' })
   @HttpCode(HttpStatus.OK)
-  async findAll(): Promise<Todo[]> {
-    return this.queryBus.execute(new GetAllTodosQuery());
+  async findAll(
+    @Req() req: any,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    const actualLimit = limit > 100 ? 100 : limit;
+    return this.queryBus.execute(new GetAllTodosQuery(req.user.userId, page, actualLimit));
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a todo by id' })
   @ApiOkResponse({ type: TodoResponseDto, description: 'The requested todo' })
   @HttpCode(HttpStatus.OK)
-  async findOne(@Param('id') id: string): Promise<Todo> {
-    return this.queryBus.execute(new GetTodoByIdQuery(id));
+  async findOne(@Req() req: any, @Param('id') id: string): Promise<Todo> {
+    return this.queryBus.execute(new GetTodoByIdQuery(id, req.user.userId));
   }
 
   @Patch(':id')
@@ -66,10 +87,11 @@ export class TodosController {
   @ApiOkResponse({ type: TodoResponseDto, description: 'The updated todo' })
   @HttpCode(HttpStatus.OK)
   async update(
+    @Req() req: any,
     @Param('id') id: string,
     @Body() dto: UpdateTodoDto,
   ): Promise<Todo> {
-    const command = new UpdateTodoCommand(id, dto.title, dto.done);
+    const command = new UpdateTodoCommand(id, req.user.userId, dto.title, dto.done);
     return this.commandBus.execute(command);
   }
 
@@ -77,8 +99,8 @@ export class TodosController {
   @ApiOperation({ summary: 'Delete a todo by id' })
   @ApiOkResponse({ description: 'Todo deleted successfully' })
   @HttpCode(HttpStatus.OK)
-  async remove(@Param('id') id: string): Promise<{ message: string }> {
-    await this.commandBus.execute(new DeleteTodoCommand(id));
+  async remove(@Req() req: any, @Param('id') id: string): Promise<{ message: string }> {
+    await this.commandBus.execute(new DeleteTodoCommand(id, req.user.userId));
     return { message: 'Todo deleted successfully' };
   }
 
@@ -114,11 +136,12 @@ export class TodosController {
     }),
   )
   async uploadAttachment(
+    @Req() req: any,
     @Param('id') id: string,
     @UploadedFile(new FileValidationPipe())
     file: Express.Multer.File,
   ): Promise<Todo> {
-    const command = new UploadTodoAttachmentCommand(id, file.path);
+    const command = new UploadTodoAttachmentCommand(id, req.user.userId, file.path);
     return this.commandBus.execute(command);
   }
 }

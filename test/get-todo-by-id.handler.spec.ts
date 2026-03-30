@@ -4,6 +4,8 @@ import { GetTodoByIdHandler } from '../src/todos/application/queries/get-todo-by
 import { GetTodoByIdQuery } from '../src/todos/application/queries/get-todo-by-id.query';
 import type { ITodoRepository } from '../src/todos/domain/todo-repository.interface';
 import { Todo } from '../src/todos/domain/todo.entity';
+import { RedisService } from '../src/common/redis/redis.service';
+import { MetricsService } from '../src/metrics/metrics.service';
 
 describe('GetTodoByIdHandler', () => {
   let handler: GetTodoByIdHandler;
@@ -18,6 +20,17 @@ describe('GetTodoByIdHandler', () => {
       delete: jest.fn(),
     };
 
+    const redisServiceMock = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+      del: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const metricsServiceMock = {
+      incrementHit: jest.fn(),
+      incrementMiss: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GetTodoByIdHandler,
@@ -25,12 +38,21 @@ describe('GetTodoByIdHandler', () => {
           provide: 'ITodoRepository',
           useValue: repoMock,
         },
+        {
+          provide: RedisService,
+          useValue: redisServiceMock,
+        },
+        {
+          provide: MetricsService,
+          useValue: metricsServiceMock,
+        },
       ],
     }).compile();
 
     handler = module.get(GetTodoByIdHandler);
     todoRepository = module.get('ITodoRepository');
   });
+
 
   it('should return a todo when repository finds it', async () => {
     const id = 'todo-id-1';
@@ -48,7 +70,7 @@ describe('GetTodoByIdHandler', () => {
     const result = await handler.execute(query);
 
     expect(todoRepository.findById).toHaveBeenCalledTimes(1);
-    expect(todoRepository.findById).toHaveBeenCalledWith(id);
+    expect(todoRepository.findById).toHaveBeenCalledWith(id, undefined);
     expect(result).toEqual(todo);
   });
 
@@ -63,7 +85,7 @@ describe('GetTodoByIdHandler', () => {
       `Todo with id "${id}" not found`,
     );
 
-    expect(todoRepository.findById).toHaveBeenCalledWith(id);
+    expect(todoRepository.findById).toHaveBeenCalledWith(id, undefined);
   });
 });
 

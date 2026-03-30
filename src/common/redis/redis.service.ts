@@ -18,7 +18,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleDestroy() {
-    this.client.disconnect();
+    this.logger.log('Redis connection closed gracefully');
+    this.client.quit();
   }
 
   async ping(): Promise<string> {
@@ -43,6 +44,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async del(key: string): Promise<void> {
     this.logger.log(`Invalidating cache for key: ${key}`);
     await this.client.del(key);
+  }
+
+  async delPattern(pattern: string): Promise<void> {
+    this.logger.log(`Invalidating cache pattern: ${pattern}`);
+    const keys = await this.client.keys(pattern);
+    if (keys.length > 0) {
+      await this.client.del(...keys);
+    }
   }
 
   async clear(): Promise<void> {

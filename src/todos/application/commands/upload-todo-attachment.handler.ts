@@ -14,14 +14,14 @@ export class UploadTodoAttachmentHandler
   ) {}
 
   async execute(command: UploadTodoAttachmentCommand): Promise<Todo> {
-    const { id, attachmentPath } = command;
+    const { id, userId, attachmentPath } = command;
 
-    const todo = await this.todoRepository.findById(id);
+    const todo = await this.todoRepository.findById(id, userId);
     if (!todo) {
       throw new NotFoundException(`Todo with ID ${id} not found`);
     }
 
-    const updatedTodo = await this.todoRepository.update(id, {
+    const updatedTodo = await this.todoRepository.update(id, userId, {
       attachmentPath,
     });
     

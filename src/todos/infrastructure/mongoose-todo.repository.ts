@@ -15,6 +15,7 @@ export class MongooseTodoRepository implements ITodoRepository {
   private toDomain(doc: TodoDocument): Todo {
     return {
       id: doc._id.toString(),
+      userId: doc.userId,
       title: doc.title,
       done: doc.done,
       attachmentPath: doc.attachmentPath,
@@ -22,31 +23,39 @@ export class MongooseTodoRepository implements ITodoRepository {
     };
   }
 
-  async findAll(): Promise<Todo[]> {
-    const docs = await this.todoModel.find().exec();
-    return docs.map((doc) => this.toDomain(doc));
+  async findAll(skip: number = 0, limit: number = 10, userId: string): Promise<{ data: Todo[]; total: number }> {
+    const [docs, total] = await Promise.all([
+      this.todoModel.find({ userId }).skip(skip).limit(limit).exec(),
+      this.todoModel.countDocuments({ userId }).exec(),
+    ]);
+    return {
+      data: docs.map((doc) => this.toDomain(doc)),
+      total,
+    };
   }
 
-  async findById(id: string): Promise<Todo | null> {
-    const doc = await this.todoModel.findById(id).exec();
+  async findById(id: string, userId: string): Promise<Todo | null> {
+    const doc = await this.todoModel.findOne({ _id: id, userId }).exec();
     return doc ? this.toDomain(doc) : null;
   }
 
-  async create(data: { title: string; done?: boolean }): Promise<Todo> {
+  async create(data: { title: string; done?: boolean; userId: string }): Promise<Todo> {
     const doc = await this.todoModel.create({
       title: data.title,
       done: data.done ?? false,
+      userId: data.userId,
     });
     return this.toDomain(doc);
   }
 
   async update(
     id: string,
+    userId: string,
     data: Partial<Pick<Todo, 'title' | 'done' | 'attachmentPath'>>,
   ): Promise<Todo | null> {
     const doc = await this.todoModel
-      .findByIdAndUpdate(
-        id,
+      .findOneAndUpdate(
+        { _id: id, userId },
         { $set: data },
         { new: true },
       )
@@ -55,8 +64,8 @@ export class MongooseTodoRepository implements ITodoRepository {
     return doc ? this.toDomain(doc) : null;
   }
 
-  async delete(id: string): Promise<boolean> {
-    const result = await this.todoModel.findByIdAndDelete(id).exec();
+  async delete(id: string, userId: string): Promise<boolean> {
+    const result = await this.todoModel.findOneAndDelete({ _id: id, userId }).exec();
     return !!result;
   }
 }

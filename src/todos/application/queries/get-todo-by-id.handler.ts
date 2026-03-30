@@ -16,8 +16,8 @@ export class GetTodoByIdHandler implements IQueryHandler<GetTodoByIdQuery, Todo>
   ) {}
 
   async execute(query: GetTodoByIdQuery): Promise<Todo> {
-    const { id } = query;
-    const cacheKey = `todos:${id}`;
+    const { id, userId } = query;
+    const cacheKey = `todos:${userId}:${id}`;
     const cachedTodo = await this.redisService.get<Todo>(cacheKey);
 
     if (cachedTodo) {
@@ -26,7 +26,7 @@ export class GetTodoByIdHandler implements IQueryHandler<GetTodoByIdQuery, Todo>
     }
 
     this.metricsService.incrementMiss();
-    const todo = await this.todoRepository.findById(id);
+    const todo = await this.todoRepository.findById(id, userId);
 
     if (!todo) {
       throw new NotFoundException(`Todo with id "${id}" not found`);

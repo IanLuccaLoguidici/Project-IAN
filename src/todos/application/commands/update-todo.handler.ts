@@ -14,14 +14,14 @@ export class UpdateTodoHandler implements ICommandHandler<UpdateTodoCommand, Tod
   ) {}
 
   async execute(command: UpdateTodoCommand): Promise<Todo> {
-    const { id, title, done } = command;
-    const updated = await this.todoRepository.update(id, { title, done });
+    const { id, userId, title, done } = command;
+    const updated = await this.todoRepository.update(id, userId, { title, done });
 
     if (!updated) {
       throw new NotFoundException(`Todo with id "${id}" not found`);
     }
 
-    await this.redisService.del('todos:all');
+    await this.redisService.delPattern('todos:all:*');
     await this.redisService.del(`todos:${id}`);
 
     return updated;

@@ -13,14 +13,14 @@ export class DeleteTodoHandler implements ICommandHandler<DeleteTodoCommand, voi
   ) {}
 
   async execute(command: DeleteTodoCommand): Promise<void> {
-    const { id } = command;
-    const deleted = await this.todoRepository.delete(id);
+    const { id, userId } = command;
+    const deleted = await this.todoRepository.delete(id, userId);
 
     if (!deleted) {
       throw new NotFoundException(`Todo with id "${id}" not found`);
     }
 
-    await this.redisService.del('todos:all');
+    await this.redisService.delPattern('todos:all:*');
     await this.redisService.del(`todos:${id}`);
   }
 }
