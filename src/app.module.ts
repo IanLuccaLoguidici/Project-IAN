@@ -55,10 +55,13 @@ import { UsersModule } from './users/users.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const u = new URL(config.get<string>('REDIS_URL')!);
+
         return {
           redis: {
             host: u.hostname,
             port: Number(u.port),
+            username: u.username,
+            password: u.password,
           },
         };
       },
