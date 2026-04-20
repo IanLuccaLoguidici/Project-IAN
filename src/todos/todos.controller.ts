@@ -31,6 +31,8 @@ import { TodoResponseDto } from './dto/todo-response.dto';
 import { CreateTodoCommand } from './application/commands/create-todo.command';
 import { UpdateTodoCommand } from './application/commands/update-todo.command';
 import { DeleteTodoCommand } from './application/commands/delete-todo.command';
+import { RestoreTodoCommand } from './application/commands/restore-todo.command';
+import { PurgeTodoCommand } from './application/commands/purge-todo.command';
 import { UploadTodoAttachmentCommand } from './application/commands/upload-todo-attachment.command';
 import { GetAllTodosQuery } from './application/queries/get-all-todos.query';
 import { GetTodoByIdQuery } from './application/queries/get-todo-by-id.query';
@@ -63,15 +65,22 @@ export class TodosController {
   @ApiOperation({ summary: 'Get all todos' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'search', required: false, type: String, example: 'Comprar' })
+  @ApiQuery({ name: 'done', required: false, type: Boolean, description: 'Filter by completion status' })
+  @ApiQuery({ name: 'userId', required: false, type: String, description: 'Filter by string userId' })
   @ApiOkResponse({ description: 'Paginated list of all todos' })
   @HttpCode(HttpStatus.OK)
   async findAll(
     @Req() req: any,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+    @Query('done') done?: string,
+    @Query('userId') filterUserId?: string,
   ) {
     const actualLimit = limit > 100 ? 100 : limit;
-    return this.queryBus.execute(new GetAllTodosQuery(req.user.userId, page, actualLimit));
+    const isDone = done === 'true' ? true : done === 'false' ? false : undefined;
+    return this.queryBus.execute(new GetAllTodosQuery(req.user.userId, page, actualLimit, search, isDone, filterUserId));
   }
 
   @Get(':id')
@@ -96,12 +105,30 @@ export class TodosController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a todo by id' })
-  @ApiOkResponse({ description: 'Todo deleted successfully' })
+  @ApiOperation({ summary: 'Soft delete a todo by id' })
+  @ApiOkResponse({ description: 'Todo soft-deleted successfully' })
   @HttpCode(HttpStatus.OK)
   async remove(@Req() req: any, @Param('id') id: string): Promise<{ message: string }> {
     await this.commandBus.execute(new DeleteTodoCommand(id, req.user.userId));
-    return { message: 'Todo deleted successfully' };
+    return { message: 'Todo soft-deleted successfully' };
+  }
+
+  @Patch(':id/restore')
+  @ApiOperation({ summary: 'Restore a soft-deleted todo' })
+  @ApiOkResponse({ description: 'Todo restored successfully' })
+  @HttpCode(HttpStatus.OK)
+  async restore(@Req() req: any, @Param('id') id: string): Promise<{ message: string }> {
+    await this.commandBus.execute(new RestoreTodoCommand(id, req.user.userId));
+    return { message: 'Todo restored successfully' };
+  }
+
+  @Delete(':id/purge')
+  @ApiOperation({ summary: 'Permanently delete a todo (purge)' })
+  @ApiOkResponse({ description: 'Todo purged successfully' })
+  @HttpCode(HttpStatus.OK)
+  async purge(@Req() req: any, @Param('id') id: string): Promise<{ message: string }> {
+    await this.commandBus.execute(new PurgeTodoCommand(id, req.user.userId));
+    return { message: 'Todo purged successfully' };
   }
 
   @Post(':id/attachment')

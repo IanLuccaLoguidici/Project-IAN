@@ -12,6 +12,8 @@ import { UpdateTodoHandler } from './application/commands/update-todo.handler';
 import { DeleteTodoHandler } from './application/commands/delete-todo.handler';
 import { GetAllTodosHandler } from './application/queries/get-all-todos.handler';
 import { GetTodoByIdHandler } from './application/queries/get-todo-by-id.handler';
+import { RestoreTodoHandler } from './application/commands/restore-todo.handler';
+import { PurgeTodoHandler } from './application/commands/purge-todo.handler';
 import { UploadTodoAttachmentHandler } from './application/commands/upload-todo-attachment.handler';
 import { TodosController } from './todos.controller';
 import { RedisService } from '../common/redis/redis.service';
@@ -23,6 +25,8 @@ const CQRS_HANDLERS = [
   DeleteTodoHandler,
   GetAllTodosHandler,
   GetTodoByIdHandler,
+  RestoreTodoHandler,
+  PurgeTodoHandler,
   UploadTodoAttachmentHandler,
 ];
 

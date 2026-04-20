@@ -20,13 +20,32 @@ export class MongooseTodoRepository implements ITodoRepository {
       done: doc.done,
       attachmentPath: doc.attachmentPath,
       createdAt: doc.createdAt,
+      deletedAt: doc.deletedAt,
     };
   }
 
-  async findAll(skip: number = 0, limit: number = 10, userId: string): Promise<{ data: Todo[]; total: number }> {
+  async findAll(
+    skip: number = 0,
+    limit: number = 10,
+    userId: string,
+    search?: string,
+    done?: boolean,
+    filterUserId?: string,
+  ): Promise<{ data: Todo[]; total: number }> {
+    const filter: any = { deletedAt: null };
+    
+    filter.userId = filterUserId ? filterUserId : userId;
+
+    if (search) {
+      filter.$text = { $search: search };
+    }
+    if (done !== undefined) {
+      filter.done = done;
+    }
+
     const [docs, total] = await Promise.all([
-      this.todoModel.find({ userId }).skip(skip).limit(limit).exec(),
-      this.todoModel.countDocuments({ userId }).exec(),
+      this.todoModel.find(filter).skip(skip).limit(limit).exec(),
+      this.todoModel.countDocuments(filter).exec(),
     ]);
     return {
       data: docs.map((doc) => this.toDomain(doc)),
@@ -35,7 +54,7 @@ export class MongooseTodoRepository implements ITodoRepository {
   }
 
   async findById(id: string, userId: string): Promise<Todo | null> {
-    const doc = await this.todoModel.findOne({ _id: id, userId }).exec();
+    const doc = await this.todoModel.findOne({ _id: id, userId, deletedAt: null }).exec();
     return doc ? this.toDomain(doc) : null;
   }
 
@@ -55,7 +74,7 @@ export class MongooseTodoRepository implements ITodoRepository {
   ): Promise<Todo | null> {
     const doc = await this.todoModel
       .findOneAndUpdate(
-        { _id: id, userId },
+        { _id: id, userId, deletedAt: null },
         { $set: data },
         { new: true },
       )
@@ -65,6 +84,28 @@ export class MongooseTodoRepository implements ITodoRepository {
   }
 
   async delete(id: string, userId: string): Promise<boolean> {
+    const result = await this.todoModel
+      .findOneAndUpdate(
+        { _id: id, userId, deletedAt: null },
+        { $set: { deletedAt: new Date() } },
+        { new: true },
+      )
+      .exec();
+    return !!result;
+  }
+
+  async restore(id: string, userId: string): Promise<boolean> {
+    const result = await this.todoModel
+      .findOneAndUpdate(
+        { _id: id, userId, deletedAt: { $ne: null } },
+        { $set: { deletedAt: null } },
+        { new: true },
+      )
+      .exec();
+    return !!result;
+  }
+
+  async purge(id: string, userId: string): Promise<boolean> {
     const result = await this.todoModel.findOneAndDelete({ _id: id, userId }).exec();
     return !!result;
   }

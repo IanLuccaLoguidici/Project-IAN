@@ -20,8 +20,12 @@ export class TodoMongo {
   @Prop({ required: false })
   attachmentPath?: string;
 
+  @Prop({ required: false, default: null, index: true, type: Date })
+  deletedAt?: Date | null;
+
   createdAt: Date;
 }
 
 export const TodoSchema = SchemaFactory.createForClass(TodoMongo);
+TodoSchema.index({ title: 'text' });
 

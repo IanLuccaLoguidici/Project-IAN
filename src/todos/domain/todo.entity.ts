@@ -5,5 +5,6 @@ export interface Todo {
   done: boolean;
   attachmentPath?: string;
   createdAt: Date;
+  deletedAt?: Date | null;
 }
 
