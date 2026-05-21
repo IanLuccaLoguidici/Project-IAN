@@ -1,12 +1,43 @@
 import { NestFactory } from '@nestjs/core';
+import { VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import * as Sentry from '@sentry/node';
 import { AppModule } from './app.module';
+import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
 
 async function bootstrap() {
+  // Initialize Sentry
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 1.0,
+  });
+
+  // Capture unhandled process errors
+  process.on('uncaughtException', (err) => {
+    Sentry.captureException(err);
+    console.error('Uncaught Exception:', err);
+    // Give Sentry some time to send the event before exiting
+    setTimeout(() => process.exit(1), 2000);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    Sentry.captureException(reason);
+    console.error('Unhandled Rejection:', reason);
+  });
+
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+
+  // Apply Sentry Interceptor globally
+  app.useGlobalInterceptors(new SentryInterceptor());
+
+  // Enable URI Versioning (e.g., /v1/..., /v2/...)
+  app.enableVersioning({
+    type: VersioningType.URI,
+  });
 
   const configService = app.get(ConfigService);
 

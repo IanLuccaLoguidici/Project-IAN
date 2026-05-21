@@ -24,6 +24,13 @@ export function createWinstonConfig(
             }),
           ),
         }),
+    new winston.transports.File({
+      filename: 'logs/app.log',
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json(),
+      ),
+    }),
   ];
 
   return {

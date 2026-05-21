@@ -16,16 +16,18 @@ import {
   ParseIntPipe,
   UseGuards,
   Req,
+  Version,
 } from '@nestjs/common';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { FileValidationPipe } from './pipes/file-validation.pipe';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { extname } from 'path';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { ApiConsumes, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiConsumes, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags, ApiQuery, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { CreateTodoDto } from './dto/create-todo.dto';
+import { CreateTodoV2Dto } from './dto/create-todo-v2.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
 import { TodoResponseDto } from './dto/todo-response.dto';
 import { CreateTodoCommand } from './application/commands/create-todo.command';
@@ -38,31 +40,69 @@ import { GetAllTodosQuery } from './application/queries/get-all-todos.query';
 import { GetTodoByIdQuery } from './application/queries/get-todo-by-id.query';
 import type { Todo } from './domain/todo.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { IdempotencyInterceptor } from '../common/interceptors/idempotency.interceptor';
+import { FeatureFlagService } from '../feature-flags/feature-flags.service';
 
 @ApiTags('Todos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('todos')
+@Controller({
+  path: 'todos',
+  version: '1',
+})
 export class TodosController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
+    private readonly featureFlagService: FeatureFlagService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new todo' })
+  @UseInterceptors(IdempotencyInterceptor)
+  @ApiOperation({ 
+    summary: 'Create a new todo',
+    deprecated: true,
+    description: 'Use the V2 version of this endpoint which includes the mandatory priority field.'
+  })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    description: 'Clave única para garantizar que la solicitud sea idempotente (evita la creación duplicada)',
+    required: false,
+  })
   @ApiCreatedResponse({ type: TodoResponseDto, description: 'The created todo' })
   @HttpCode(HttpStatus.CREATED)
   async create(@Req() req: any, @Body() dto: CreateTodoDto): Promise<Todo> {
-    this.logger.info('Creating new todo', { title: dto.title, userId: req.user.userId });
+    this.logger.info('Creating new todo (V1)', { title: dto.title, userId: req.user.userId });
+    const command = new CreateTodoCommand(req.user.userId, dto.title, dto.done);
+    return this.commandBus.execute(command);
+  }
+
+  @Version('2')
+  @Post()
+  @UseInterceptors(IdempotencyInterceptor)
+  @ApiOperation({ summary: 'Create a new todo (V2)' })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    description: 'Clave única para garantizar que la solicitud sea idempotente (evita la creación duplicada)',
+    required: false,
+  })
+  @ApiCreatedResponse({ type: TodoResponseDto, description: 'The created todo with priority' })
+  @HttpCode(HttpStatus.CREATED)
+  async createV2(@Req() req: any, @Body() dto: CreateTodoV2Dto): Promise<Todo> {
+    this.logger.info('Creating new todo (V2)', { title: dto.title, priority: dto.priority, userId: req.user.userId });
+    // Nota: Aquí se debería pasar el priority al comando, pero para este ejemplo solo mostramos el DTO y el controlador.
     const command = new CreateTodoCommand(req.user.userId, dto.title, dto.done);
     return this.commandBus.execute(command);
   }
 
 
   @Get()
-  @ApiOperation({ summary: 'Get all todos' })
+  @ApiOperation({ 
+    summary: 'Get all todos',
+    deprecated: true,
+    description: 'Use the V2 version of this endpoint.'
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @ApiQuery({ name: 'search', required: false, type: String, example: 'Comprar' })
@@ -80,7 +120,46 @@ export class TodosController {
   ) {
     const actualLimit = limit > 100 ? 100 : limit;
     const isDone = done === 'true' ? true : done === 'false' ? false : undefined;
-    return this.queryBus.execute(new GetAllTodosQuery(req.user.userId, page, actualLimit, search, isDone, filterUserId));
+
+    const isSearchV2Enabled = await this.featureFlagService.isEnabled('enableSearchV2');
+
+    if (isSearchV2Enabled && search) {
+      this.logger.info('Executing NEW search logic (V2)', { userId: req.user.userId, search });
+      // Aquí podrías despachar un comando/query diferente, ej: new AdvancedSearchQuery(...)
+      // A modo de ejemplo, usamos la consulta actual pero añadimos metadatos para demostrar la bifurcación.
+      const result = await this.queryBus.execute(
+        new GetAllTodosQuery(req.user.userId, page, actualLimit, search, isDone, filterUserId)
+      );
+      return {
+        _metadata: { searchEngine: 'v2-advanced-search', flagEnabled: true },
+        data: result,
+      };
+    }
+
+    this.logger.info('Executing OLD search logic (V1)', { userId: req.user.userId, search });
+    return this.queryBus.execute(
+      new GetAllTodosQuery(req.user.userId, page, actualLimit, search, isDone, filterUserId)
+    );
+  }
+
+  @Version('2')
+  @Get()
+  @ApiOperation({ summary: 'Get all todos (Version 2)' })
+  @HttpCode(HttpStatus.OK)
+  async findAllV2() {
+    const isV2Enabled = await this.featureFlagService.isEnabled('enable-todos-v2');
+    
+    if (!isV2Enabled) {
+      return {
+        message: 'La versión 2 de Todos está deshabilitada temporalmente por un feature flag.',
+        data: [],
+      };
+    }
+
+    return {
+      message: '¡Esta es la versión 2 (V2) de la ruta todos!',
+      data: [],
+    };
   }
 
   @Get(':id')
@@ -152,14 +231,7 @@ export class TodosController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/todos',
-        filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
     }),
   )
   async uploadAttachment(
@@ -168,7 +240,7 @@ export class TodosController {
     @UploadedFile(new FileValidationPipe())
     file: Express.Multer.File,
   ): Promise<Todo> {
-    const command = new UploadTodoAttachmentCommand(id, req.user.userId, file.path);
+    const command = new UploadTodoAttachmentCommand(id, req.user.userId, file);
     return this.commandBus.execute(command);
   }
 }

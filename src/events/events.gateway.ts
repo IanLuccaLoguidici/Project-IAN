@@ -25,7 +25,14 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   }
 
   handleConnection(client: Socket) {
-    console.log(`Cliente conectado: ${client.id}`);
+    const userId = client.handshake.query.userId as string;
+
+    if (userId) {
+      client.join(userId);
+      console.log(`Cliente conectado y unido a la sala del usuario: ${userId} (${client.id})`);
+    } else {
+      console.log(`Cliente conectado sin userId: ${client.id}`);
+    }
   }
 
   handleDisconnect(client: Socket) {

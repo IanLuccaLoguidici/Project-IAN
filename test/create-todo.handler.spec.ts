@@ -4,6 +4,7 @@ import { CreateTodoCommand } from '../src/todos/application/commands/create-todo
 import type { ITodoRepository } from '../src/todos/domain/todo-repository.interface';
 import { Todo } from '../src/todos/domain/todo.entity';
 import { RedisService } from '../src/common/redis/redis.service';
+import { EventsGateway } from '../src/events/events.gateway';
 
 describe('CreateTodoHandler', () => {
   let handler: CreateTodoHandler;
@@ -16,6 +17,8 @@ describe('CreateTodoHandler', () => {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      restore: jest.fn(),
+      purge: jest.fn(),
     };
 
     const redisServiceMock = {
@@ -39,6 +42,14 @@ describe('CreateTodoHandler', () => {
         {
           provide: 'BullQueue_todo-queue',
           useValue: { add: jest.fn() },
+        },
+        {
+          provide: EventsGateway,
+          useValue: {
+            server: {
+              to: jest.fn().mockReturnValue({ emit: jest.fn() }),
+            },
+          },
         },
       ],
     }).compile();

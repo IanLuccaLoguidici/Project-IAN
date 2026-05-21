@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EventsModule } from '../events/events.module';
 import { ConfigModule } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
 import { BullModule } from '@nestjs/bull';
@@ -32,6 +33,7 @@ const CQRS_HANDLERS = [
 
 @Module({
   imports: [
+    EventsModule,
     CqrsModule,
     BullModule.registerQueue({
       name: 'todo-queue',

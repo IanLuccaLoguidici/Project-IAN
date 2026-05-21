@@ -19,6 +19,9 @@ import { MetricsModule } from './metrics/metrics.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EventsModule } from './events/events.module';
+import { LogsModule } from './logs/logs.module';
+import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
+import { MinioModule } from './common/minio/minio.module';
 
 @Module({
   imports: [
@@ -29,6 +32,9 @@ import { EventsModule } from './events/events.module';
     LoggerModule,
     UsersModule,
     AuthModule,
+    LogsModule,
+    FeatureFlagsModule,
+    MinioModule,
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

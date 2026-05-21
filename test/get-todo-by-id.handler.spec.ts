@@ -18,6 +18,8 @@ describe('GetTodoByIdHandler', () => {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      restore: jest.fn(),
+      purge: jest.fn(),
     };
 
     const redisServiceMock = {
@@ -56,10 +58,11 @@ describe('GetTodoByIdHandler', () => {
 
   it('should return a todo when repository finds it', async () => {
     const id = 'todo-id-1';
-    const query = new GetTodoByIdQuery(id);
+    const query = new GetTodoByIdQuery(id, 'user-1');
 
     const todo: Todo = {
       id,
+      userId: 'user-1',
       title: 'Existing todo',
       done: false,
       createdAt: new Date('2026-03-05T00:00:00.000Z'),
@@ -70,13 +73,13 @@ describe('GetTodoByIdHandler', () => {
     const result = await handler.execute(query);
 
     expect(todoRepository.findById).toHaveBeenCalledTimes(1);
-    expect(todoRepository.findById).toHaveBeenCalledWith(id, undefined);
+    expect(todoRepository.findById).toHaveBeenCalledWith(id, 'user-1');
     expect(result).toEqual(todo);
   });
 
   it('should throw NotFoundException when repository returns null', async () => {
     const id = 'missing-id';
-    const query = new GetTodoByIdQuery(id);
+    const query = new GetTodoByIdQuery(id, 'user-1');
 
     todoRepository.findById.mockResolvedValue(null);
 
@@ -85,7 +88,7 @@ describe('GetTodoByIdHandler', () => {
       `Todo with id "${id}" not found`,
     );
 
-    expect(todoRepository.findById).toHaveBeenCalledWith(id, undefined);
+    expect(todoRepository.findById).toHaveBeenCalledWith(id, 'user-1');
   });
 });
 
