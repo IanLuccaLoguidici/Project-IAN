@@ -23,11 +23,19 @@ import { LogsModule } from './logs/logs.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { MinioModule } from './common/minio/minio.module';
 
+import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: envValidationSchema,
+    }),
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      autoSchemaFile: true,
+      playground: true,
     }),
     LoggerModule,
     UsersModule,

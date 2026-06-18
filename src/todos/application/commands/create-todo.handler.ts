@@ -1,4 +1,5 @@
 import { Inject } from '@nestjs/common';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import type { ITodoRepository } from '../../domain/todo-repository.interface';
 import { Todo } from '../../domain/todo.entity';
@@ -20,16 +21,29 @@ export class CreateTodoHandler implements ICommandHandler<CreateTodoCommand, Tod
   ) {}
 
   async execute(command: CreateTodoCommand): Promise<Todo> {
-    const { userId, title, done } = command;
-    const todo = await this.todoRepository.create({ userId, title, done });
-    await this.redisService.delPattern('todos:all:*');
-    
-    this.eventsGateway.server.to(userId).emit('todo_created', {
-      message: 'Nuevo todo creado',
-      data: todo,
-    });
+    const tracer = trace.getTracer('todos-module');
+    return await tracer.startActiveSpan('CreateTodoHandler.execute', async (span) => {
+      try {
+        const { userId, title, done } = command;
+        span.setAttribute('todo.title', title);
+        
+        const todo = await this.todoRepository.create({ userId, title, done });
+        await this.redisService.delPattern('todos:all:*');
+        
+        this.eventsGateway.server.to(userId).emit('todo_created', {
+          message: 'Nuevo todo creado',
+          data: todo,
+        });
 
-    return todo;
+        span.end();
+        return todo;
+      } catch (err) {
+        span.recordException(err as Error);
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        span.end();
+        throw err;
+      }
+    });
   }
 }
 

@@ -71,4 +71,14 @@ export class MinioService implements OnModuleInit {
       this.logger.error(`Error deleting file ${objectName} from MinIO`, error);
     }
   }
+
+  async getPresignedUrl(objectName: string): Promise<string> {
+    try {
+      // Expira en 5 minutos (300 segundos)
+      return await this.minioClient.presignedGetObject(this.bucketName, objectName, 300);
+    } catch (error) {
+      this.logger.error(`Error generating presigned URL for ${objectName}`, error);
+      throw new Error('Could not generate presigned URL');
+    }
+  }
 }

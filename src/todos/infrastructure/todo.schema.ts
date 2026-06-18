@@ -23,6 +23,9 @@ export class TodoMongo {
   @Prop({ required: false, default: null, index: true, type: Date })
   deletedAt?: Date | null;
 
+  @Prop({ required: false, index: true })
+  tenantId?: string;
+
   createdAt: Date;
 }
 

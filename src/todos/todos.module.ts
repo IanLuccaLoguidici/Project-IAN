@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TodosResolver } from './graphql/todos.resolver';
 import { EventsModule } from '../events/events.module';
 import { ConfigModule } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -52,6 +53,7 @@ const CQRS_HANDLERS = [
     TodoProcessor,
     OpenAIService,
     RedisService,
+    TodosResolver,
   ],
   exports: ['ITodoRepository', RedisService],
 })

@@ -6,5 +6,6 @@ export interface Todo {
   attachmentPath?: string;
   createdAt: Date;
   deletedAt?: Date | null;
+  tenantId?: string;
 }
 

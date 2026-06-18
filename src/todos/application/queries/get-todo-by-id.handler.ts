@@ -1,4 +1,5 @@
 import { Inject, NotFoundException } from '@nestjs/common';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import type { ITodoRepository } from '../../domain/todo-repository.interface';
 import { Todo } from '../../domain/todo.entity';
@@ -16,24 +17,41 @@ export class GetTodoByIdHandler implements IQueryHandler<GetTodoByIdQuery, Todo>
   ) {}
 
   async execute(query: GetTodoByIdQuery): Promise<Todo> {
-    const { id, userId } = query;
-    const cacheKey = `todos:${userId}:${id}`;
-    const cachedTodo = await this.redisService.get<Todo>(cacheKey);
+    const tracer = trace.getTracer('todos-module');
+    return await tracer.startActiveSpan('GetTodoByIdHandler.execute', async (span) => {
+      try {
+        const { id, userId } = query;
+        span.setAttribute('todo.id', id);
+        span.setAttribute('todo.userId', userId);
+        
+        const cacheKey = `todos:${userId}:${id}`;
+        const cachedTodo = await this.redisService.get<Todo>(cacheKey);
 
-    if (cachedTodo) {
-      this.metricsService.incrementHit();
-      return cachedTodo;
-    }
+        if (cachedTodo) {
+          this.metricsService.incrementHit();
+          span.setAttribute('cache.hit', true);
+          span.end();
+          return cachedTodo;
+        }
 
-    this.metricsService.incrementMiss();
-    const todo = await this.todoRepository.findById(id, userId);
+        this.metricsService.incrementMiss();
+        span.setAttribute('cache.hit', false);
+        const todo = await this.todoRepository.findById(id, userId);
 
-    if (!todo) {
-      throw new NotFoundException(`Todo with id "${id}" not found`);
-    }
+        if (!todo) {
+          throw new NotFoundException(`Todo with id "${id}" not found`);
+        }
 
-    await this.redisService.set(cacheKey, todo);
-    return todo;
+        await this.redisService.set(cacheKey, todo);
+        span.end();
+        return todo;
+      } catch (err) {
+        span.recordException(err as Error);
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        span.end();
+        throw err;
+      }
+    });
   }
 }
 

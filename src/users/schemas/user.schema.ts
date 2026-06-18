@@ -11,6 +11,9 @@ export class User extends Document {
 
   @Prop()
   name: string;
+
+  @Prop({ required: false, index: true })
+  tenantId?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
