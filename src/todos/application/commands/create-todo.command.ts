@@ -5,6 +5,7 @@ export class CreateTodoCommand implements ICommand {
     public readonly userId: string,
     public readonly title: string,
     public readonly done?: boolean,
+    public readonly tenantId?: string,
   ) {}
 }
 

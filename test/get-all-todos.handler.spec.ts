@@ -81,7 +81,7 @@ describe('GetAllTodosHandler', () => {
     const expectedCacheKey = 'todos:all:user-1:page:2:limit:5:search:search:done:true:filterUserId:filter-id';
     expect(redisService.get).toHaveBeenCalledWith(expectedCacheKey);
     // skip = (2 - 1) * 5 = 5
-    expect(todoRepository.findAll).toHaveBeenCalledWith(5, 5, 'user-1', 'search', true, 'filter-id');
+    expect(todoRepository.findAll).toHaveBeenCalledWith(5, 5, 'user-1', 'search', true, 'filter-id', undefined);
     
     expect(result.data).toEqual(dbResponse.data);
     expect(result.meta).toEqual({ page: 2, limit: 5, total: 1, totalPages: 1, hasMore: false });

@@ -16,8 +16,9 @@ export class GetAllTodosHandler implements IQueryHandler<GetAllTodosQuery, any> 
   ) {}
 
   async execute(query: GetAllTodosQuery): Promise<any> {
-    const { userId, page, limit, search, done, filterUserId } = query;
-    const cacheKey = `todos:all:${userId}:page:${page}:limit:${limit}${search ? `:search:${search}` : ''}${done !== undefined ? `:done:${done}` : ''}${filterUserId ? `:filterUserId:${filterUserId}` : ''}`;
+    const { userId, page, limit, search, done, filterUserId, tenantId } = query;
+    const tenantKey = tenantId ? `:tenant:${tenantId}` : '';
+    const cacheKey = `todos:all:${userId}:page:${page}:limit:${limit}${search ? `:search:${search}` : ''}${done !== undefined ? `:done:${done}` : ''}${filterUserId ? `:filterUserId:${filterUserId}` : ''}${tenantKey}`;
     const cachedData = await this.redisService.get<any>(cacheKey);
 
     if (cachedData) {
@@ -27,7 +28,7 @@ export class GetAllTodosHandler implements IQueryHandler<GetAllTodosQuery, any> 
 
     this.metricsService.incrementMiss();
     const skip = (page - 1) * limit;
-    const { data: todos, total } = await this.todoRepository.findAll(skip, limit, userId, search, done, filterUserId);
+    const { data: todos, total } = await this.todoRepository.findAll(skip, limit, userId, search, done, filterUserId, tenantId);
 
     const totalPages = Math.ceil(total / limit);
     const hasMore = page < totalPages;

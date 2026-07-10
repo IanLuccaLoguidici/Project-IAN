@@ -20,11 +20,13 @@ export class GetTodoByIdHandler implements IQueryHandler<GetTodoByIdQuery, Todo>
     const tracer = trace.getTracer('todos-module');
     return await tracer.startActiveSpan('GetTodoByIdHandler.execute', async (span) => {
       try {
-        const { id, userId } = query;
+        const { id, userId, tenantId } = query;
         span.setAttribute('todo.id', id);
         span.setAttribute('todo.userId', userId);
+        if (tenantId) span.setAttribute('todo.tenantId', tenantId);
         
-        const cacheKey = `todos:${userId}:${id}`;
+        const tenantKey = tenantId ? `:${tenantId}` : '';
+        const cacheKey = `todos:${userId}:${id}${tenantKey}`;
         const cachedTodo = await this.redisService.get<Todo>(cacheKey);
 
         if (cachedTodo) {
@@ -36,7 +38,7 @@ export class GetTodoByIdHandler implements IQueryHandler<GetTodoByIdQuery, Todo>
 
         this.metricsService.incrementMiss();
         span.setAttribute('cache.hit', false);
-        const todo = await this.todoRepository.findById(id, userId);
+        const todo = await this.todoRepository.findById(id, userId, tenantId);
 
         if (!todo) {
           throw new NotFoundException(`Todo with id "${id}" not found`);

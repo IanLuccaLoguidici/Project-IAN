@@ -21,6 +21,7 @@ export class MongooseTodoRepository implements ITodoRepository {
       attachmentPath: doc.attachmentPath,
       createdAt: doc.createdAt,
       deletedAt: doc.deletedAt,
+      tenantId: doc.tenantId,
     };
   }
 
@@ -31,10 +32,12 @@ export class MongooseTodoRepository implements ITodoRepository {
     search?: string,
     done?: boolean,
     filterUserId?: string,
+    tenantId?: string,
   ): Promise<{ data: Todo[]; total: number }> {
     const filter: any = { deletedAt: null };
     
     filter.userId = filterUserId ? filterUserId : userId;
+    if (tenantId) filter.tenantId = tenantId;
 
     if (search) {
       filter.$text = { $search: search };
@@ -53,16 +56,19 @@ export class MongooseTodoRepository implements ITodoRepository {
     };
   }
 
-  async findById(id: string, userId: string): Promise<Todo | null> {
-    const doc = await this.todoModel.findOne({ _id: id, userId, deletedAt: null }).exec();
+  async findById(id: string, userId: string, tenantId?: string): Promise<Todo | null> {
+    const filter: any = { _id: id, userId, deletedAt: null };
+    if (tenantId) filter.tenantId = tenantId;
+    const doc = await this.todoModel.findOne(filter).exec();
     return doc ? this.toDomain(doc) : null;
   }
 
-  async create(data: { title: string; done?: boolean; userId: string }): Promise<Todo> {
+  async create(data: { title: string; done?: boolean; userId: string; tenantId?: string }): Promise<Todo> {
     const doc = await this.todoModel.create({
       title: data.title,
       done: data.done ?? false,
       userId: data.userId,
+      tenantId: data.tenantId,
     });
     return this.toDomain(doc);
   }

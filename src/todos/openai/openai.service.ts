@@ -12,7 +12,7 @@ export class OpenAIService {
   private readonly breaker: CircuitBreaker;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('OPENAI_API_KEY');
+    this.apiKey = this.configService.get<string>('OPENAI_API_KEY') || '';
     if (!this.apiKey) {
       throw new InternalServerErrorException('OpenAI API key not configured');
     }
@@ -34,7 +34,7 @@ export class OpenAIService {
         this.logger.warn(`Reintento ${retryCount} de la API externa debido al error: ${error.message}`);
       },
       retryCondition: (error) => {
-        return axiosRetry.isNetworkOrIdempotentRequestError(error) || (error.response && error.response.status >= 500);
+        return Boolean(axiosRetry.isNetworkOrIdempotentRequestError(error) || (error.response && error.response.status >= 500));
       },
     });
 
@@ -94,6 +94,6 @@ export class OpenAIService {
    */
   async suggestTitle(description: string): Promise<string> {
     // Fire ejecuta la función envuelta en el circuit breaker
-    return this.breaker.fire(description);
+    return this.breaker.fire(description) as Promise<string>;
   }
 }

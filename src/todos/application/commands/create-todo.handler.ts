@@ -24,10 +24,10 @@ export class CreateTodoHandler implements ICommandHandler<CreateTodoCommand, Tod
     const tracer = trace.getTracer('todos-module');
     return await tracer.startActiveSpan('CreateTodoHandler.execute', async (span) => {
       try {
-        const { userId, title, done } = command;
+        const { userId, title, done, tenantId } = command;
         span.setAttribute('todo.title', title);
         
-        const todo = await this.todoRepository.create({ userId, title, done });
+        const todo = await this.todoRepository.create({ userId, title, done, tenantId });
         await this.redisService.delPattern('todos:all:*');
         
         this.eventsGateway.server.to(userId).emit('todo_created', {

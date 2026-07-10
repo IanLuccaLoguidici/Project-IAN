@@ -24,7 +24,7 @@ export class TodosResolver {
     const userId = context.req.user.userId;
     // Assuming page 1, limit 100 as default parameters like in the controller for simplicity or they can be args.
     // For now returning the result of GetAllTodosQuery which handles pagination as well, we pass defaults.
-    return this.queryBus.execute(new GetAllTodosQuery(userId, 1, 100));
+    return this.queryBus.execute(new GetAllTodosQuery(userId, 1, 100, undefined, undefined, undefined, context.req?.tenantId));
   }
 
   @Query(() => TodoType, { name: 'todo' })
@@ -33,7 +33,7 @@ export class TodosResolver {
     @Context() context: any,
   ): Promise<TodoType> {
     const userId = context.req.user.userId;
-    return this.queryBus.execute(new GetTodoByIdQuery(id, userId));
+    return this.queryBus.execute(new GetTodoByIdQuery(id, userId, context.req?.tenantId));
   }
 
   @Mutation(() => TodoType, { name: 'createTodo' })
@@ -43,7 +43,7 @@ export class TodosResolver {
   ): Promise<TodoType> {
     const userId = context.req.user.userId;
     return this.commandBus.execute(
-      new CreateTodoCommand(userId, input.title, input.done),
+      new CreateTodoCommand(userId, input.title, input.done, context.req?.tenantId),
     );
   }
 

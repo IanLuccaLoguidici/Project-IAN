@@ -8,6 +8,7 @@ export class GetAllTodosQuery implements IQuery {
     public readonly search?: string,
     public readonly done?: boolean,
     public readonly filterUserId?: string,
+    public readonly tenantId?: string,
   ) {}
 }
 

@@ -74,7 +74,7 @@ export class TodosController {
   @HttpCode(HttpStatus.CREATED)
   async create(@Req() req: any, @Body() dto: CreateTodoDto): Promise<Todo> {
     this.logger.info('Creating new todo (V1)', { title: dto.title, userId: req.user.userId });
-    const command = new CreateTodoCommand(req.user.userId, dto.title, dto.done);
+    const command = new CreateTodoCommand(req.user.userId, dto.title, dto.done, req.tenantId);
     return this.commandBus.execute(command);
   }
 
@@ -92,7 +92,7 @@ export class TodosController {
   async createV2(@Req() req: any, @Body() dto: CreateTodoV2Dto): Promise<Todo> {
     this.logger.info('Creating new todo (V2)', { title: dto.title, priority: dto.priority, userId: req.user.userId });
     // Nota: Aquí se debería pasar el priority al comando, pero para este ejemplo solo mostramos el DTO y el controlador.
-    const command = new CreateTodoCommand(req.user.userId, dto.title, dto.done);
+    const command = new CreateTodoCommand(req.user.userId, dto.title, dto.done, req.tenantId);
     return this.commandBus.execute(command);
   }
 
@@ -128,7 +128,7 @@ export class TodosController {
       // Aquí podrías despachar un comando/query diferente, ej: new AdvancedSearchQuery(...)
       // A modo de ejemplo, usamos la consulta actual pero añadimos metadatos para demostrar la bifurcación.
       const result = await this.queryBus.execute(
-        new GetAllTodosQuery(req.user.userId, page, actualLimit, search, isDone, filterUserId)
+        new GetAllTodosQuery(req.user.userId, page, actualLimit, search, isDone, filterUserId, req.tenantId)
       );
       return {
         _metadata: { searchEngine: 'v2-advanced-search', flagEnabled: true },
@@ -138,7 +138,7 @@ export class TodosController {
 
     this.logger.info('Executing OLD search logic (V1)', { userId: req.user.userId, search });
     return this.queryBus.execute(
-      new GetAllTodosQuery(req.user.userId, page, actualLimit, search, isDone, filterUserId)
+      new GetAllTodosQuery(req.user.userId, page, actualLimit, search, isDone, filterUserId, req.tenantId)
     );
   }
 
@@ -167,7 +167,7 @@ export class TodosController {
   @ApiOkResponse({ type: TodoResponseDto, description: 'The requested todo' })
   @HttpCode(HttpStatus.OK)
   async findOne(@Req() req: any, @Param('id') id: string): Promise<Todo> {
-    return this.queryBus.execute(new GetTodoByIdQuery(id, req.user.userId));
+    return this.queryBus.execute(new GetTodoByIdQuery(id, req.user.userId, req.tenantId));
   }
 
   @Patch(':id')

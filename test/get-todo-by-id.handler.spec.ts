@@ -73,7 +73,7 @@ describe('GetTodoByIdHandler', () => {
     const result = await handler.execute(query);
 
     expect(todoRepository.findById).toHaveBeenCalledTimes(1);
-    expect(todoRepository.findById).toHaveBeenCalledWith(id, 'user-1');
+    expect(todoRepository.findById).toHaveBeenCalledWith(id, 'user-1', undefined);
     expect(result).toEqual(todo);
   });
 
@@ -88,7 +88,7 @@ describe('GetTodoByIdHandler', () => {
       `Todo with id "${id}" not found`,
     );
 
-    expect(todoRepository.findById).toHaveBeenCalledWith(id, 'user-1');
+    expect(todoRepository.findById).toHaveBeenCalledWith(id, 'user-1', undefined);
   });
 });
 

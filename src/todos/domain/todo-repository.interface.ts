@@ -1,9 +1,9 @@
 import { Todo } from './todo.entity';
 
 export interface ITodoRepository {
-  findAll(skip: number, limit: number, userId: string, search?: string, done?: boolean, filterUserId?: string): Promise<{ data: Todo[]; total: number }>;
-  findById(id: string, userId: string): Promise<Todo | null>;
-  create(data: { title: string; done?: boolean; userId: string }): Promise<Todo>;
+  findAll(skip: number, limit: number, userId: string, search?: string, done?: boolean, filterUserId?: string, tenantId?: string): Promise<{ data: Todo[]; total: number }>;
+  findById(id: string, userId: string, tenantId?: string): Promise<Todo | null>;
+  create(data: { title: string; done?: boolean; userId: string; tenantId?: string }): Promise<Todo>;
   update(
     id: string,
     userId: string,
