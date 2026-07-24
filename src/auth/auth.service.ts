@@ -70,6 +70,23 @@ export class AuthService {
     return this.generateTokens(user._id.toString(), user.email);
   }
 
+  async validateUserForSession(loginDto: LoginDto) {
+    const user = await this.usersService.findOneByEmail(loginDto.email);
+    if (!user || !user.passwordHash) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isMatch = await bcrypt.compare(loginDto.password, user.passwordHash);
+    if (!isMatch) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    return {
+      userId: user._id.toString(),
+      email: user.email,
+    };
+  }
+
   async generateTokens(userId: string, email: string) {
     const payload = { sub: userId, email };
     const access_token = this.jwtService.sign(payload);
@@ -146,5 +163,28 @@ export class AuthService {
     const user = await this.usersService.findOrCreateOAuthUser(email, email.split('@')[0]);
     
     return this.generateTokens(user._id.toString(), user.email);
+  }
+
+  async createSession(userId: string, ttl: number = 3600): Promise<string> {
+    const sessionId = crypto.randomUUID();
+    const sessionData = JSON.stringify({ userId });
+    await this.redisClient.setex(`session:${sessionId}`, ttl, sessionData);
+    return sessionId;
+  }
+
+  async getSession(sessionId: string): Promise<{ userId: string } | null> {
+    const sessionData = await this.redisClient.get(`session:${sessionId}`);
+    if (!sessionData) {
+      return null;
+    }
+    try {
+      return JSON.parse(sessionData) as { userId: string };
+    } catch {
+      return null;
+    }
+  }
+
+  async destroySession(sessionId: string): Promise<void> {
+    await this.redisClient.del(`session:${sessionId}`);
   }
 }

@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import * as cookieParser from 'cookie-parser';
 import * as Sentry from '@sentry/node';
 import { AppModule } from './app.module';
 import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
@@ -31,6 +32,7 @@ async function bootstrap() {
   });
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.use(cookieParser());
 
   // Apply Sentry Interceptor globally
   app.useGlobalInterceptors(new SentryInterceptor());

@@ -58,4 +58,29 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('Clearing all cache');
     await this.client.flushall();
   }
+
+  getClient(): Redis {
+    return this.client;
+  }
+
+  async zadd(key: string, score: number, member: string): Promise<number> {
+    return this.client.zadd(key, score, member);
+  }
+
+  async zrevrange(key: string, start: number, stop: number): Promise<string[]> {
+    return this.client.zrevrange(key, start, stop);
+  }
+
+  async zrevrangeWithScores(key: string, start: number, stop: number): Promise<[string, number][]> {
+    const result = await this.client.zrevrange(key, start, stop, 'WITHSCORES');
+    const pairs: [string, number][] = [];
+    for (let i = 0; i < result.length; i += 2) {
+      pairs.push([result[i], Number(result[i + 1])]);
+    }
+    return pairs;
+  }
+
+  async expire(key: string, seconds: number): Promise<number> {
+    return this.client.expire(key, seconds);
+  }
 }

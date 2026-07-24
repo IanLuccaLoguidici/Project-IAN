@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { RedisModule } from '../redis/redis.module';
+import { SessionService } from './session.service';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
@@ -12,6 +14,7 @@ import { EmailProcessor } from './processors/email.processor';
 
 @Module({
   imports: [
+    RedisModule,
     UsersModule,
     PassportModule,
     JwtModule.registerAsync({
@@ -26,7 +29,7 @@ import { EmailProcessor } from './processors/email.processor';
       name: 'email',
     }),
   ],
-  providers: [AuthService, JwtStrategy, GoogleStrategy, EmailProcessor],
+  providers: [AuthService, SessionService, JwtStrategy, GoogleStrategy, EmailProcessor],
   controllers: [AuthController],
   exports: [AuthService],
 })

@@ -22,6 +22,7 @@ import { EventsModule } from './events/events.module';
 import { LogsModule } from './logs/logs.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { MinioModule } from './common/minio/minio.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
 
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
@@ -85,6 +86,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
     HealthModule,
     MetricsModule,
     EventsModule,
+    LeaderboardModule,
   ],
   controllers: [AppController],
   providers: [
